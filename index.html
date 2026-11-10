@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Prep Slot Finder</title>
+<meta name="description" content="Find the best time for your group to prep a case, based on everyone's class schedule.">
+<style>
+:root{
+  --bg:#f6f3ec; --card:#fffdf8; --ink:#1d2433; --mute:#667085; --line:#ded8c9;
+  --acc:#1f5f4a; --acc-soft:#e3efe8; --busy:#c8553d; --busy-soft:#f4d9d1; --warn:#9a6700;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:28px 20px 8px;max-width:960px;margin:0 auto}
+h1{font:700 28px/1.15 Georgia,"Times New Roman",serif;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0;max-width:60ch}
+main{max-width:960px;margin:0 auto;padding:12px 20px 60px;display:grid;gap:18px}
+section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+h2{margin:0 0 4px;font-size:17px}
+h2 .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:13px;margin-right:8px}
+.hint{color:var(--mute);font-size:14px;margin:0 0 14px}
+label{display:block;font-size:13px;font-weight:600;color:var(--mute);margin-bottom:4px}
+input[type=text],textarea,select{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+textarea{resize:vertical;min-height:64px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.row>*{flex:1 1 180px}
+button{font:inherit;font-weight:600;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+button:hover{border-color:#bdb6a2}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+button.primary:hover{background:#184c3b}
+button.ghost{border-color:transparent;background:transparent;color:var(--mute);padding:6px 8px}
+button.small{padding:5px 10px;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.chip{display:flex;align-items:center;gap:4px;padding:4px 6px 4px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:14px}
+.chip b{font-weight:600;margin-right:4px}
+.chip button{padding:2px 8px;font-size:12px;border-radius:999px}
+.empty{color:var(--mute);font-size:14px;margin:14px 0 0}
+details{margin-top:14px}
+summary{cursor:pointer;color:var(--acc);font-weight:600;font-size:14px}
+.msg{font-size:13px;margin:6px 0 0;min-height:1em;color:var(--mute)}
+.msg.err{color:var(--busy)}
+
+/* grid */
+.gridwrap{overflow-x:auto;margin:14px 0}
+table.grid{border-collapse:separate;border-spacing:2px;width:100%;min-width:420px;table-layout:fixed;user-select:none;-webkit-user-select:none}
+table.grid th{font-size:12px;font-weight:600;color:var(--mute);padding:2px 0}
+table.grid th.t{width:54px;text-align:right;padding-right:6px;font-weight:500;white-space:nowrap}
+table.grid th.d{cursor:pointer}
+table.grid th.d:hover{color:var(--ink)}
+table.grid td{height:20px;border-radius:4px;background:#efeadc}
+table.grid.edit{touch-action:none}
+table.grid.edit td{cursor:pointer}
+table.grid.edit td.hour{background:#e8e2d1}
+table.grid.edit td.on{background:var(--busy)}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--mute);flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* results */
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px}
+.days{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.days label{display:flex;align-items:center;gap:5px;margin:0;font-size:13px;color:var(--ink);font-weight:600;border:1px solid var(--line);padding:4px 10px;border-radius:999px;background:#fff;cursor:pointer}
+.days input{accent-color:var(--acc)}
+.results{display:grid;gap:10px}
+.slot{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px 14px}
+.slot.best{border-color:var(--acc);background:var(--acc-soft)}
+.slot h3{margin:0;font-size:17px}
+.slot p{margin:2px 0 0;font-size:13px;color:var(--mute)}
+.badge{font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--acc);color:#fff;white-space:nowrap}
+.badge.part{background:var(--warn)}
+.tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--acc);margin-bottom:2px}
+.none{padding:16px;border:1px dashed var(--line);border-radius:12px;color:var(--mute);background:#fff}
+table.heat td{text-align:center;font-size:11px;color:var(--ink);height:18px}
+table.heat td.dim{opacity:.35}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:.2s}
+.toast.show{opacity:1;transform:translateX(-50%)}
+footer{max-width:960px;margin:0 auto;padding:0 20px 40px;color:var(--mute);font-size:13px}
+@media (max-width:520px){section{padding:16px}h1{font-size:24px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Case Prep Slot Finder</h1>
+  <p class="sub">Everyone marks the hours they're in class. The app shows when the whole group is free to prep a case.</p>
+</header>
+
+<main>
+  <section id="sec-people">
+    <h2><span class="n">1</span>Your group</h2>
+    <p class="hint">Name the group, then add each person's weekly class schedule below.</p>
+    <div class="row">
+      <div><label for="group">Group name (optional)</label><input type="text" id="group" placeholder="e.g. Case Team 4" maxlength="40"></div>
+      <div style="flex:0 0 auto;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="primary" id="share">Copy group link</button>
+        <button class="ghost" id="reset">Start over</button>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="empty" id="no-people">No one added yet. Start with your own schedule below.</p>
+    <details>
+      <summary>Got a code from a teammate?</summary>
+      <p class="hint" style="margin-top:8px">Paste the code(s) they copied with the "Code" button, one per line.</p>
+      <textarea id="import" placeholder="Priya~3f00a1..."></textarea>
+      <div class="actions" style="margin-top:8px"><button id="do-import">Add to group</button></div>
+      <p class="msg" id="import-msg"></p>
+    </details>
+  </section>
+
+  <section id="sec-editor">
+    <h2><span class="n">2</span><span id="editor-title">Add a schedule</span></h2>
+    <p class="hint">Tap or drag over the hours you are <b>busy</b> (classes, clubs, anything fixed). Tap a day name to fill or clear the whole day. The schedule repeats every week.</p>
+    <div class="row">
+      <div><label for="pname">Name</label><input type="text" id="pname" placeholder="Your name" maxlength="30"></div>
+    </div>
+    <details>
+      <summary>Or type it in quickly</summary>
+      <p class="hint" style="margin-top:8px">Examples: <code>Mon 9-11, Wed 2-4pm, Tue/Thu 10:30-12, Mon-Fri 1-2</code>. Hours before 8 are read as pm.</p>
+      <textarea id="quick" placeholder="Mon 9-11, Wed 2-4pm"></textarea>
+      <div class="actions" style="margin-top:8px"><button id="apply-quick">Mark these as busy</button></div>
+      <p class="msg" id="quick-msg"></p>
+    </details>
+    <div class="gridwrap"><table class="grid edit" id="grid"></table></div>
+    <div class="legend"><span><i style="background:var(--busy)"></i>Busy</span><span><i style="background:#efeadc"></i>Free</span></div>
+    <div class="actions" style="margin-top:14px">
+      <button class="primary" id="save">Save schedule</button>
+      <button id="clear">Clear grid</button>
+      <button class="ghost" id="cancel" hidden>Cancel edit</button>
+    </div>
+    <p class="msg" id="save-msg"></p>
+  </section>
+
+  <section id="sec-find">
+    <h2><span class="n">3</span>Best slots</h2>
+    <p class="hint">Ranked by how many people are free. Adjust length, hours and days to suit.</p>
+    <div class="settings">
+      <div><label for="dur">Session length</label>
+        <select id="dur"><option value="60">1 hour</option><option value="90" selected>1.5 hours</option><option value="120">2 hours</option><option value="150">2.5 hours</option><option value="180">3 hours</option><option value="240">4 hours</option></select></div>
+      <div><label for="from">Earliest start</label><select id="from"></select></div>
+      <div><label for="to">Latest finish</label><select id="to"></select></div>
+      <div><label for="miss">Who needs to be free</label>
+        <select id="miss"><option value="0">Everyone</option><option value="1">All but 1</option><option value="2">All but 2</option></select></div>
+    </div>
+    <div class="days" id="days"></div>
+    <div class="results" id="results"></div>
+    <div class="actions" style="margin-top:14px"><button id="copy-results" hidden>Copy top slots as text</button></div>
+
+    <details style="margin-top:20px">
+      <summary>See the full week (how many people are free each half hour)</summary>
+      <div class="gridwrap"><table class="grid heat" id="heat"></table></div>
+    </details>
+  </section>
+</main>
+
+<footer>
+  No accounts, no server. Everything lives in the group link, and the part after the # never leaves your browser. If someone adds or edits a schedule, they should copy the group link again and send it round.
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const START=8, N=30, TOTAL=7*N;          // 8:00am to 11:00pm in 30-min slots
+const $=s=>document.querySelector(s);
+const clean=s=>s.replace(/[|~]/g,'').replace(/\s+/g,' ').trim().slice(0,30);
+
+let people=[], group='', editIdx=-1, draft=new Uint8Array(TOTAL);
+const settings={dur:90, from:0, to:N, minDelta:0, days:[1,1,1,1,1,1,1]};
+
+/* ---------- time helpers ---------- */
+const slotMin=k=>START*60+k*30;
+function timeStr(mins){
+  let h=Math.floor(mins/60), m=mins%60; const ap=h>=12&&h<24?'pm':'am';
+  h=h%12||12; return h+(m?':'+String(m).padStart(2,'0'):'')+ap;
+}
+
+/* ---------- encode / decode ---------- */
+function toHex(a){
+  let out='';
+  for(let i=0;i<TOTAL;i+=8){let b=0;for(let j=0;j<8;j++) if(a[i+j]) b|=1<<j; out+=b.toString(16).padStart(2,'0');}
+  return out;
+}
+function fromHex(s){
+  const a=new Uint8Array(TOTAL);
+  for(let i=0;i<TOTAL;i++){const byte=parseInt(s.substr(Math.floor(i/8)*2,2),16)||0;a[i]=(byte>>(i%8))&1;}
+  return a;
+}
+function parseCode(s){
+  s=s.trim(); const i=s.lastIndexOf('~'); if(i<1) return null;
+  const name=clean(s.slice(0,i)), hex=s.slice(i+1).trim();
+  if(!name||!/^[0-9a-f]{54}$/i.test(hex)) return null;
+  return {name,busy:fromHex(hex)};
+}
+const codeOf=p=>p.name+'~'+toHex(p.busy);
+
+/* ---------- persistence: URL hash + localStorage ---------- */
+function saveState(){
+  const p=new URLSearchParams();
+  if(group) p.set('g',group);
+  if(people.length) p.set('p',people.map(codeOf).join('|'));
+  const h=p.toString();
+  try{history.replaceState(null,'',h?'#'+h:location.pathname+location.search);}catch(e){}
+  try{localStorage.setItem('cpsf',h);}catch(e){}
+}
+function loadState(){
+  let h=location.hash.slice(1);
+  if(!h){try{h=localStorage.getItem('cpsf')||'';}catch(e){}}
+  const p=new URLSearchParams(h);
+  group=(p.get('g')||'').slice(0,40);
+  people=(p.get('p')||'').split('|').filter(Boolean).map(parseCode).filter(Boolean);
+}
+
+/* ---------- quick-text parser ---------- */
+function parseDays(s){
+  const low=s.toLowerCase();
+  const names=low.match(/mon|tue|wed|thu|fri|sat|sun/g)||[];
+  const idx=names.map(n=>DAYS.findIndex(D=>D.toLowerCase()===n));
+  const skeleton=low.replace(/(mon|tue|wed|thu|fri|sat|sun)[a-z]*/g,'#');
+  if(idx.length===2 && /-|–|\bto\b|through|thru/.test(skeleton)){
+    const out=[]; for(let d=idx[0];;d=(d+1)%7){out.push(d); if(d===idx[1]) break;} return out;
+  }
+  return [...new Set(idx)];
+}
+function parseTimes(s){
+  const m=s.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|—|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if(!m) return null;
+  let h1=+m[1], m1=+(m[2]||0), a1=(m[3]||'').toLowerCase(), h2=+m[4], m2=+(m[5]||0), a2=(m[6]||'').toLowerCase();
+  if(h1>24||h2>24||m1>59||m2>59) return null;
+  const to24=(h,ap)=>ap==='am'?(h%12):ap==='pm'?(h%12)+12:h;
+  const flip=ap=>ap==='pm'?'am':'pm';
+  let s1,e1;
+  if(a1||a2){
+    e1=a2?to24(h2,a2):null; s1=a1?to24(h1,a1):null;
+    if(s1===null){ s1=to24(h1,a2); if(s1*60+m1>=e1*60+m2) s1=to24(h1,flip(a2)); }
+    if(e1===null){ e1=to24(h2,a1); if(e1*60+m2<=s1*60+m1) e1=to24(h2,flip(a1)); }
+  }else{
+    s1=h1<8?h1+12:h1; e1=h2<8?h2+12:h2; if(e1*60+m2<=s1*60+m1) e1+=12;
+  }
+  const a=s1*60+m1, b=e1*60+m2;
+  return b>a ? [a,b] : null;
+}
+function parseSchedule(text){
+  const res={ok:0,bad:[],marks:[]};
+  text.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).forEach(tok=>{
+    const m=tok.match(/^([a-z][a-z\s\/&\-]*?)\s*(\d.*)$/i);
+    if(!m){res.bad.push(tok);return;}
+    const days=parseDays(m[1]), t=parseTimes(m[2]);
+    if(!days.length||!t){res.bad.push(tok);return;}
+    days.forEach(d=>res.marks.push([d,t[0],t[1]])); res.ok++;
+  });
+  return res;
+}
+function markBusy(arr,d,sMin,eMin){
+  for(let k=0;k<N;k++){const s=slotMin(k),e=s+30; if(s<eMin&&e>sMin) arr[d*N+k]=1;}
+}
+
+/* ---------- grids ---------- */
+const grid=$('#grid'), heat=$('#heat');
+let cellEls=[], heatEls=[];
+function buildTable(tbl,els,editable){
+  let h='<thead><tr><th class="t"></th>'+DAYS.map((d,i)=>`<th class="d" data-day="${i}">${d}</th>`).join('')+'</tr></thead><tbody>';
+  for(let k=0;k<N;k++){
+    h+='<tr><th class="t">'+(k%2===0?timeStr(slotMin(k)):'')+'</th>';
+    for(let d=0;d<7;d++) h+=`<td data-i="${d*N+k}"${editable&&k%2===0?' class="hour"':''}></td>`;
+    h+='</tr>';
+  }
+  tbl.innerHTML=h+'</tbody>';
+  tbl.querySelectorAll('td').forEach(td=>els[+td.dataset.i]=td);
+}
+function setCell(i,v){draft[i]=v; cellEls[i].classList.toggle('on',!!v);}
+function paintDraft(){for(let i=0;i<TOTAL;i++) cellEls[i].classList.toggle('on',!!draft[i]);}
+
+let painting=false, paintVal=1;
+grid.addEventListener('pointerdown',e=>{
+  const th=e.target.closest('th[data-day]');
+  if(th){const d=+th.dataset.day; let any=false; for(let k=0;k<N;k++) if(!draft[d*N+k]) any=true; for(let k=0;k<N;k++) setCell(d*N+k,any?1:0); return;}
+  const td=e.target.closest('td[data-i]'); if(!td) return;
+  e.preventDefault(); painting=true;
+  const i=+td.dataset.i; paintVal=draft[i]?0:1; setCell(i,paintVal);
+  try{td.releasePointerCapture(e.pointerId);}catch(_){}
+});
+document.addEventListener('pointermove',e=>{
+  if(!painting) return;
+  const el=document.elementFromPoint(e.clientX,e.clientY), td=el&&el.closest&&el.closest('td[data-i]');
+  if(td&&grid.contains(td)) setCell(+td.dataset.i,paintVal);
+});
+['pointerup','pointercancel'].forEach(t=>document.addEventListener(t,()=>{painting=false;}));
+
+/* ---------- people list ---------- */
+const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function renderPeople(){
+  $('#chips').innerHTML=people.map((p,i)=>`<span class="chip"><b>${esc(p.name)}</b><button class="small" data-act="edit" data-i="${i}">Edit</button><button class="small" data-act="code" data-i="${i}">Code</button><button class="small" data-act="del" data-i="${i}" aria-label="Remove ${esc(p.name)}">✕</button></span>`).join('');
+  $('#no-people').hidden=people.length>0;
+  const miss=$('#miss'), cur=miss.value;
+  const opts=[['0','Everyone']]; for(let k=1;k<Math.max(people.length,1);k++) opts.push([String(k),k===1?'All but 1':'All but '+k]);
+  miss.innerHTML=opts.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('');
+  miss.value=opts.some(o=>o[0]===cur)?cur:'0'; settings.minDelta=+miss.value;
+}
+$('#chips').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-act]'); if(!b) return;
+  const i=+b.dataset.i, p=people[i];
+  if(b.dataset.act==='del'){people.splice(i,1); if(editIdx===i) resetEditor(); else if(editIdx>i) editIdx--; commit();}
+  if(b.dataset.act==='edit'){editIdx=i; $('#pname').value=p.name; draft=Uint8Array.from(p.busy); paintDraft(); setEditorMode(); $('#sec-editor').scrollIntoView({behavior:'smooth'});}
+  if(b.dataset.act==='code'){copyText(codeOf(p),'Code copied. Send it to whoever is collecting schedules.');}
+});
+
+/* ---------- editor ---------- */
+function setEditorMode(){
+  $('#editor-title').textContent=editIdx>=0?'Edit '+people[editIdx].name+"'s schedule":'Add a schedule';
+  $('#save').textContent=editIdx>=0?'Update schedule':'Save schedule';
+  $('#cancel').hidden=editIdx<0;
+}
+function resetEditor(){editIdx=-1; $('#pname').value=''; $('#quick').value=''; draft=new Uint8Array(TOTAL); paintDraft(); setEditorMode();}
+function say(id,text,err){const el=$(id); el.textContent=text; el.classList.toggle('err',!!err);}
+
+$('#apply-quick').onclick=()=>{
+  const r=parseSchedule($('#quick').value);
+  r.marks.forEach(m=>markBusy(draft,...m)); paintDraft();
+  say('#quick-msg',(r.ok?`Marked ${r.ok} block${r.ok>1?'s':''} as busy.`:'Nothing recognised.')+(r.bad.length?` Couldn't read: ${r.bad.join(' | ')}`:''),!r.ok||r.bad.length);
+};
+$('#clear').onclick=()=>{draft=new Uint8Array(TOTAL); paintDraft();};
+$('#cancel').onclick=()=>{resetEditor(); say('#save-msg','');};
+$('#save').onclick=()=>{
+  const name=clean($('#pname').value);
+  if(!name){say('#save-msg','Add a name first.',true); $('#pname').focus(); return;}
+  const entry={name,busy:Uint8Array.from(draft)};
+  if(editIdx>=0) people[editIdx]=entry;
+  else{
+    const dup=people.findIndex(p=>p.name.toLowerCase()===name.toLowerCase());
+    if(dup>=0) people[dup]=entry; else people.push(entry);
+  }
+  say('#save-msg',`Saved ${name}.`); resetEditor(); commit();
+  $('#sec-find').scrollIntoView({behavior:'smooth'});
+};
+
+/* ---------- import / share / reset ---------- */
+$('#do-import').onclick=()=>{
+  const lines=$('#import').value.split(/[\n|]+/).map(s=>s.trim()).filter(Boolean);
+  let ok=0,bad=0;
+  lines.forEach(l=>{const p=parseCode(l); if(!p){bad++;return;}
+    const i=people.findIndex(x=>x.name.toLowerCase()===p.name.toLowerCase()); if(i>=0) people[i]=p; else people.push(p); ok++;});
+  say('#import-msg',`Added ${ok}.`+(bad?` ${bad} line${bad>1?'s':''} couldn't be read.`:''),bad>0&&!ok);
+  if(ok){$('#import').value=''; commit();}
+};
+$('#group').addEventListener('input',e=>{group=e.target.value.slice(0,40); saveState();});
+$('#share').onclick=()=>{saveState(); copyText(location.href,people.length?'Group link copied.':'Link copied (nobody added yet).');};
+$('#reset').onclick=()=>{
+  if(people.length&&!confirm('Remove everyone and start a fresh group?')) return;
+  people=[]; group=''; $('#group').value=''; resetEditor(); commit();
+};
+
+/* ---------- slot finding ---------- */
+function compute(){
+  const P=people.length, need=settings.dur/30, out=[];
+  if(!P) return out;
+  for(let d=0;d<7;d++){
+    if(!settings.days[d]) continue;
+    let run=null;
+    for(let a=settings.from;a+need<=settings.to;a++){
+      const busy=[];
+      people.forEach((p,pi)=>{for(let j=0;j<need;j++) if(p.busy[d*N+a+j]){busy.push(pi);break;}});
+      const free=P-busy.length, key=busy.join(',');
+      if(free>=Math.max(1,P-settings.minDelta)){
+        if(run&&run.key===key&&run.last===a-1) run.last=a;
+        else{ if(run) out.push(run); run={d,first:a,last:a,key,busy,free}; }
+      }else if(run){out.push(run); run=null;}
+    }
+    if(run) out.push(run);
+  }
+  out.sort((x,y)=>y.free-x.free||(y.last-y.first)-(x.last-x.first)||x.d-y.d||x.first-y.first);
+  return out;
+}
+function describe(r){
+  const dur=settings.dur, P=people.length;
+  const s=slotMin(r.first), e=slotMin(r.last)+dur, lastStart=slotMin(r.last);
+  return {
+    title:`${DAYS[r.d]} ${timeStr(s)} – ${timeStr(e)}`,
+    badge:r.free===P?'Everyone free':`${r.free} of ${P} free`,
+    busy:r.busy.map(i=>people[i].name),
+    note:r.last>r.first?`Start anywhere from ${timeStr(s)} to ${timeStr(lastStart)}`:`Exactly ${dur/60} hour${dur===60?'':'s'}`
+  };
+}
+let lastTop=[];
+function renderResults(){
+  const box=$('#results'), P=people.length;
+  $('#copy-results').hidden=true;
+  if(!P){box.innerHTML='<div class="none">Add at least one schedule to see suggestions.</div>'; renderHeat(); return;}
+  const all=compute(), top=all.slice(0,8); lastTop=top.map(describe);
+  if(!top.length){
+    box.innerHTML='<div class="none">No slot fits those settings. Try a shorter session, wider hours, more days, or allow one or two people to miss it.</div>';
+  }else{
+    box.innerHTML=lastTop.map((x,i)=>`<div class="slot${i===0?' best':''}"><div>${i===0?'<div class="tag">Best option</div>':''}<h3>${x.title}</h3><p>${x.note}${x.busy.length?' · Busy: '+esc(x.busy.join(', ')):''}</p></div><span class="badge${x.busy.length?' part':''}">${x.badge}</span></div>`).join('');
+    $('#copy-results').hidden=false;
+  }
+  renderHeat();
+}
+function renderHeat(){
+  const P=people.length;
+  for(let d=0;d<7;d++) for(let k=0;k<N;k++){
+    const i=d*N+k, td=heatEls[i]; let busy=0; people.forEach(p=>{if(p.busy[i]) busy++;});
+    const free=P-busy, f=P?free/P:0;
+    td.textContent=P?free:''; td.style.background=P?`rgba(31,95,74,${(0.08+0.82*f).toFixed(2)})`:'';
+    td.style.color=f>0.55?'#fff':'';
+    td.classList.toggle('dim',!settings.days[d]||k<settings.from||k>=settings.to);
+  }
+}
+$('#copy-results').onclick=()=>{
+  const lines=lastTop.slice(0,4).map((x,i)=>`${i+1}. ${x.title} (${x.badge}${x.busy.length?'; busy: '+x.busy.join(', '):''})`);
+  copyText(`${group?group+' – ':''}Case prep slot options (${settings.dur/60}h):\n`+lines.join('\n'),'Copied. Paste it into your group chat.');
+};
+
+/* ---------- settings UI ---------- */
+function initSettings(){
+  const from=$('#from'), to=$('#to');
+  for(let k=0;k<N;k+=2) from.insertAdjacentHTML('beforeend',`<option value="${k}">${timeStr(slotMin(k))}</option>`);
+  for(let k=2;k<=N;k+=2) to.insertAdjacentHTML('beforeend',`<option value="${k}">${timeStr(slotMin(k))}</option>`);
+  to.value=N;
+  $('#days').innerHTML=DAYS.map((d,i)=>`<label><input type="checkbox" data-d="${i}" checked>${d}</label>`).join('');
+  $('#dur').onchange=e=>{settings.dur=+e.target.value; renderResults();};
+  from.onchange=e=>{settings.from=+e.target.value; renderResults();};
+  to.onchange=e=>{settings.to=+e.target.value; renderResults();};
+  $('#miss').onchange=e=>{settings.minDelta=+e.target.value; renderResults();};
+  $('#days').onchange=e=>{const c=e.target.closest('input[data-d]'); if(c){settings.days[+c.dataset.d]=c.checked?1:0; renderResults();}};
+}
+
+/* ---------- misc ---------- */
+let toastT;
+function toast(t){const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200);}
+function copyText(text,msg){
+  const done=()=>toast(msg||'Copied');
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(done,()=>fallback());}
+  else fallback();
+  function fallback(){const t=document.createElement('textarea'); t.value=text; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); try{document.execCommand('copy'); done();}catch(e){prompt('Copy this:',text);} t.remove();}
+}
+function commit(){saveState(); renderPeople(); renderResults();}
+
+/* ---------- boot ---------- */
+buildTable(grid,cellEls,true); buildTable(heat,heatEls,false);
+initSettings(); loadState(); $('#group').value=group;
+renderPeople(); renderResults(); setEditorMode();
+window.addEventListener('hashchange',()=>{loadState(); $('#group').value=group; renderPeople(); renderResults();});
+</script>
+</body>
+</html>
